@@ -142,7 +142,6 @@ def main(file_paths):
                 else:
                     idf_n = 0    
             
-                print(len(file_paths))
                 positive += tf_p * idf_p
                 negative += tf_n * idf_n
             
