@@ -18,7 +18,7 @@ def read_files(file_paths):
             sentences_with_file_numbers.extend([(sentence.strip(), file_number) for sentence in sentences])
             
             words = word_tokenize(text)  
-            word_counts.insert(len(word_counts),len(words))
+            word_counts.insert(len(word_counts), len(words))
         file_number += 1
     
     return sentences_with_file_numbers, word_counts
@@ -66,6 +66,21 @@ def exit_with_error(message):
     MPI.Finalize()
     sys.exit(1)
 
+def determine_sentiment(positive, negative):
+    if positive == 0 and negative >= 0.1:
+        return "negative"
+    elif negative == 0 and positive >= 0.1:
+        return "positive"
+    elif positive > negative and positive >= 0.3:
+        return "positive"
+    elif negative > positive and negative >= 0.3:
+        return "negative"
+    elif positive == 0 and negative < 0.1:
+        return "neutral"
+    elif negative == 0 and positive < 0.1:
+        return "neutral"
+    else:
+        return "neutral"
 
 def main(file_paths):
     comm = MPI.COMM_WORLD
@@ -89,7 +104,7 @@ def main(file_paths):
         exit_with_error("Error decoding JSON.")
         
     if rank == 0:
-        meargd_number_of_conotation_words = [0] * size * 2
+        merged_number_of_conotation_words = [0] * size * 2
         nltk.download('punkt')
         sentences_with_file_numbers, word_counts = read_files(file_paths)
         data_to_process = divide_sentences_among_threads(sentences_with_file_numbers, size, comm)
@@ -103,7 +118,7 @@ def main(file_paths):
     if sum(word_counts) > 1000000:
     #if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
         if rank == 0:
-            exit_with_error("The total number of words in all files must be at least 1000 and less then 1000 000.")
+            exit_with_error("The total number of words in all files must be at least 1000 and less than 1000000.")
         else:
             MPI.Finalize()
             sys.exit(1)
@@ -145,8 +160,11 @@ def main(file_paths):
                 positive += tf_p * idf_p
                 negative += tf_n * idf_n
             
+        sentiment = determine_sentiment(positive, negative)
+        
         print("Positive: ", positive)
         print("Negative: ", negative)
+        print("Sentiment: ", sentiment)
         
     MPI.Finalize()
 
