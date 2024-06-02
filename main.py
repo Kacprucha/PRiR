@@ -71,9 +71,9 @@ def determine_sentiment(positive, negative):
         return "negative"
     elif negative == 0 and positive >= 0.1:
         return "positive"
-    elif positive > negative and positive >= 0.3:
+    elif positive > negative and positive >= 0.4:
         return "positive"
-    elif negative > positive and negative >= 0.3:
+    elif negative > positive and negative >= 0.4:
         return "negative"
     elif positive == 0 and negative < 0.1:
         return "neutral"
