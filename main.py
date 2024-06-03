@@ -67,17 +67,17 @@ def exit_with_error(message):
     sys.exit(1)
 
 def determine_sentiment(positive, negative):
-    if positive == 0 and negative >= 0.1:
+    if positive <= 0.05 and negative >= 0.05:
         return "negative"
-    elif negative == 0 and positive >= 0.1:
+    elif negative <= 0.05 and positive >= 0.05:
         return "positive"
-    elif positive > negative and positive >= 0.4:
+    elif positive > negative and (positive - negative) >= 0.05:
         return "positive"
-    elif negative > positive and negative >= 0.4:
+    elif negative > positive and (negative - positive) >= 0.05:
         return "negative"
-    elif positive == 0 and negative < 0.1:
+    elif positive == 0 and negative < 0.05:
         return "neutral"
-    elif negative == 0 and positive < 0.1:
+    elif negative == 0 and positive < 0.05:
         return "neutral"
     else:
         return "neutral"
@@ -108,16 +108,16 @@ def main(file_paths):
         nltk.download('punkt')
         sentences_with_file_numbers, word_counts = read_files(file_paths)
         data_to_process = divide_sentences_among_threads(sentences_with_file_numbers, size, comm)
-        #print("Word counts: ", word_counts)
     else:
         data_to_process = comm.recv(source=0)
         
     comm.Barrier()
     word_counts = comm.bcast(word_counts, root=0)
     
-    if sum(word_counts) > 1000000:
-    #if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
+    #if sum(word_counts) > 1000000:
+    if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
         if rank == 0:
+            print("Number of words in documents: ", sum(word_counts))
             exit_with_error("The total number of words in all files must be at least 1000 and less than 1000000.")
         else:
             MPI.Finalize()
