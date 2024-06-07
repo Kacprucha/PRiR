@@ -27,6 +27,8 @@ def divide_sentences_among_threads(sentences, num_threads, comm):
     chunk_size = len(sentences) // num_threads
     remainder = len(sentences) % num_threads
     
+    print("Chunk size:", chunk_size, "Remainder:", remainder)
+    
     divided_sentences = []
     result = []
     
@@ -35,9 +37,9 @@ def divide_sentences_among_threads(sentences, num_threads, comm):
         end = start + chunk_size + (1 if i < remainder else 0)
         
         if i == 0:
-            result.append(sentences[start:end])
+            result = sentences[start:end]
         else:
-            divided_sentences.append(sentences[start:end])
+            divided_sentences = sentences[start:end]
             comm.send(divided_sentences, dest=i)
             divided_sentences = []
             
@@ -67,17 +69,17 @@ def exit_with_error(message):
     sys.exit(1)
 
 def determine_sentiment(positive, negative):
-    if positive <= 0.05 and negative >= 0.05:
+    if positive <= 0.1 and negative >= 0.1:
         return "negative"
-    elif negative <= 0.05 and positive >= 0.05:
+    elif negative <= 0.1 and positive >= 0.1:
         return "positive"
-    elif positive > negative and (positive - negative) >= 0.05:
+    elif positive > negative and (positive - negative) >= 0.1:
         return "positive"
-    elif negative > positive and (negative - positive) >= 0.05:
+    elif negative > positive and (negative - positive) >= 0.1:
         return "negative"
-    elif positive == 0 and negative < 0.05:
+    elif positive == 0 and negative < 0.1:
         return "neutral"
-    elif negative == 0 and positive < 0.05:
+    elif negative == 0 and positive < 0.1:
         return "neutral"
     else:
         return "neutral"
@@ -88,7 +90,7 @@ def main(file_paths):
     size = comm.Get_size()
     
     word_counts = []
-    number_of_conotation_words = [0] * size * 2
+    number_of_conotation_words = [0] * (len(sys.argv) - 1) * 2
     data_to_process = []
     
     if len(sys.argv) < 2:
@@ -104,37 +106,31 @@ def main(file_paths):
         exit_with_error("Error decoding JSON.")
         
     if rank == 0:
-        merged_number_of_conotation_words = [0] * size * 2
+        merged_number_of_conotation_words = [0] * (len(sys.argv) - 1)*2
         nltk.download('punkt')
         sentences_with_file_numbers, word_counts = read_files(file_paths)
+        
+        if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
+            if rank == 0:
+                print("Number of words in documents: ", sum(word_counts))
+                print("The total number of words in all files must be at least 1000 and less than 1000000.")
+                MPI.COMM_WORLD.Abort(1)
+            
         data_to_process = divide_sentences_among_threads(sentences_with_file_numbers, size, comm)
     else:
         data_to_process = comm.recv(source=0)
-        
-    comm.Barrier()
-    word_counts = comm.bcast(word_counts, root=0)
     
-    #if sum(word_counts) > 1000000:
-    if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
-        if rank == 0:
-            print("Number of words in documents: ", sum(word_counts))
-            exit_with_error("The total number of words in all files must be at least 1000 and less than 1000000.")
-        else:
-            MPI.Finalize()
-            sys.exit(1)
-    
-    for sentences in data_to_process:
-        for sentence, file_number in sentences:
-            words = word_tokenize(sentence)
-            words = [word.capitalize() for word in words]
-            for word in words:
-                if word in conotation_words_dict:
-                    if conotation_words_dict[word]:
-                        number_of_conotation_words[file_number * 2] += 1
-                    else:
-                        number_of_conotation_words[(file_number * 2) + 1] += 1
+    for sentences in data_to_process:           
+        sentence, file_number = sentences
+        words = word_tokenize(sentence)
+        words = [word.capitalize() for word in words]
+        for word in words:
+            if word in conotation_words_dict:
+                if conotation_words_dict[word]:
+                    number_of_conotation_words[file_number * 2] += 1
+                else:
+                    number_of_conotation_words[(file_number * 2) + 1] += 1
                         
-    comm.Barrier()
     merged_number_of_conotation_words = comm.gather(number_of_conotation_words, root=0)
     
     if rank == 0:
@@ -142,7 +138,7 @@ def main(file_paths):
         positive = 0
         negative = 0
         file_number = 0
-        for i in range(size*2):
+        for i in range((len(sys.argv) - 1)*2):
             if i % 2 == 0:
                 tf_p = merged_number_of_conotation_words[i] / word_counts[file_number]
                 tf_n = merged_number_of_conotation_words[i+1] / word_counts[file_number]
@@ -159,6 +155,9 @@ def main(file_paths):
             
                 positive += tf_p * idf_p
                 negative += tf_n * idf_n
+                
+                file_number += 1
+                
             
         sentiment = determine_sentiment(positive, negative)
         
