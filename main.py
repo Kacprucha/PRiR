@@ -27,8 +27,6 @@ def divide_sentences_among_threads(sentences, num_threads, comm):
     chunk_size = len(sentences) // num_threads
     remainder = len(sentences) % num_threads
     
-    print("Chunk size:", chunk_size, "Remainder:", remainder)
-    
     divided_sentences = []
     result = []
     

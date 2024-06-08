@@ -63,7 +63,7 @@ def main(file_paths):
     number_of_conotation_words = [0] * (len(sys.argv) - 1) * 2
     data_to_process = []
     
-    if (len(sys.argv) - 1) < 2:
+    if len(sys.argv) < 2:
         exit_with_error("Usage: python main.py <file> ...")
     
     try:
@@ -78,7 +78,6 @@ def main(file_paths):
     nltk.download('punkt')
     data_to_process, word_counts = read_files(file_paths)
     
-    #if sum(word_counts) > 1000000:
     if sum(word_counts) < 1000 and sum(word_counts) < 1000000:
         print("Number of words in documents: ", sum(word_counts))
         exit_with_error("The total number of words in all files must be at least 1000 and less than 1000000.")
