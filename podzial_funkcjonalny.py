@@ -95,7 +95,7 @@ def main(file_paths):
         exit_with_error("Usage: python main.py <file> ...")
     
     try:
-        with open('data.json', 'r') as file:
+        with open('data\data.json', 'r') as file:
             conotation_words_dict = json.load(file)
         print("Data successfully read from data.json by process", rank)
     except FileNotFoundError:
